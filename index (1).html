@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>JobChat</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+// Fallback: se unpkg non carica, prova jsdelivr
+window.addEventListener('load', () => {
+  if (!window.supabase) {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+    document.head.appendChild(s);
+  }
+});
+</script>
+<style>
+:root {
+  --blue:#1a4dbe; --blue-light:#2563eb; --blue-dark:#0f2d72;
+  --blue-glow:rgba(26,77,190,.35);
+  --off-white:#f0f4ff; --text:#0d1b3e; --text-mid:#4a5a80;
+  --text-muted:#8896b0; --bg:#f4f7ff; --surface:#fff;
+  --border:rgba(26,77,190,.12); --sidebar-w:260px; --action-w:72px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100vh}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ── AUTH SCREEN ── */
+#authScreen{position:fixed;inset:0;background:linear-gradient(135deg,var(--blue-dark),var(--blue),#2563eb);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px}
+.auth-box{background:#fff;border-radius:24px;padding:40px 36px;width:100%;max-width:420px;box-shadow:0 24px 80px rgba(0,0,0,.25)}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px;justify-content:center}
+.auth-logo-icon{width:44px;height:44px;background:var(--blue);border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px var(--blue-glow)}
+.auth-logo-icon svg{width:28px;height:28px}
+.auth-logo-name{font-family:'Outfit',sans-serif;font-weight:900;font-size:1.7rem;letter-spacing:-.03em;color:var(--blue)}
+.auth-logo-name span{color:var(--blue-light)}
+.auth-title{font-family:'Outfit',sans-serif;font-weight:800;font-size:1.25rem;margin-bottom:6px;text-align:center}
+.auth-sub{font-size:.87rem;color:var(--text-muted);text-align:center;margin-bottom:24px}
+.auth-tabs{display:flex;background:var(--off-white);border-radius:12px;padding:4px;margin-bottom:22px}
+.auth-tab{flex:1;padding:8px;border-radius:9px;border:none;background:none;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer;transition:.18s;color:var(--text-muted)}
+.auth-tab.active{background:#fff;color:var(--blue);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.auth-field{margin-bottom:14px}
+.auth-field label{display:block;font-size:.8rem;font-weight:700;color:var(--text-mid);margin-bottom:5px}
+.auth-input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:inherit;font-size:.9rem;color:var(--text);outline:none;transition:.2s}
+.auth-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-glow)}
+.auth-btn{width:100%;padding:13px;background:var(--blue);border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:.95rem;font-weight:800;cursor:pointer;transition:.18s;margin-top:6px;box-shadow:0 6px 18px var(--blue-glow)}
+.auth-btn:hover{background:var(--blue-light);transform:translateY(-1px)}
+.auth-btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.auth-err{background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:9px 13px;font-size:.83rem;color:#b91c1c;margin-bottom:12px;display:none}
+
+/* ── LOADING ── */
+#appLoader{position:fixed;inset:0;background:var(--blue);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9998;gap:16px}
+.loader-logo{font-family:'Outfit',sans-serif;font-weight:900;font-size:2.2rem;color:#fff;letter-spacing:-.03em}
+.loader-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5)}
+.loader-dots{display:flex;gap:6px}
+.loader-dot:nth-child(1){animation:dotBounce .8s .0s infinite}
+.loader-dot:nth-child(2){animation:dotBounce .8s .15s infinite}
+.loader-dot:nth-child(3){animation:dotBounce .8s .3s infinite}
+@keyframes dotBounce{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-6px)}}
+
+/* ── APP LAYOUT ── */
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:var(--sidebar-w);height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:22px 14px 20px;flex-shrink:0;z-index:100;overflow-y:auto}
+.sidebar-logo{padding:0 8px;margin-bottom:30px}
+.logo-wrap{display:flex;align-items:center;gap:9px;text-decoration:none;user-select:none}
+.logo-icon{width:36px;height:36px;background:var(--blue);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px var(--blue-glow)}
+.logo-icon svg{width:22px;height:22px}
+.logo-name{font-family:'Outfit',sans-serif;font-weight:900;font-size:1.35rem;letter-spacing:-.03em;color:var(--blue)}
+.logo-name span{color:var(--blue-light)}
+.nav-section-label{font-size:.68rem;font-weight:700;letter-spacing:.1em;color:var(--text-muted);text-transform:uppercase;padding:0 10px;margin:14px 0 6px}
+.nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;cursor:pointer;transition:.18s;font-size:.9rem;font-weight:500;color:var(--text-mid);border:1px solid transparent;margin-bottom:2px}
+.nav-item:hover{background:var(--off-white);color:var(--blue)}
+.nav-item.active{background:linear-gradient(135deg,rgba(26,77,190,.1),rgba(37,99,235,.06));border-color:rgba(26,77,190,.18);color:var(--blue);font-weight:700}
+.nav-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:var(--off-white);flex-shrink:0;transition:.18s}
+.nav-item.active .nav-icon,.nav-item:hover .nav-icon{background:rgba(26,77,190,.1)}
+.nav-badge{margin-left:auto;background:var(--blue);color:#fff;font-size:.62rem;font-weight:800;padding:2px 7px;border-radius:20px}
+.sidebar-divider{height:1px;background:var(--border);margin:10px 0}
+.sidebar-bottom{margin-top:auto;display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:11px;background:var(--off-white);cursor:pointer;transition:.18s;border:1px solid var(--border)}
+.sidebar-bottom:hover{background:rgba(26,77,190,.07)}
+.avatar-chip{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--blue-light));display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden}
+.avatar-chip img{width:100%;height:100%;object-fit:cover}
+.sb-user-name{font-size:.85rem;font-weight:700}
+.sb-user-role{font-size:.72rem;color:var(--text-muted)}
+
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:58px;background:rgba(244,247,255,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px;z-index:50;flex-shrink:0}
+.feed-tabs{display:flex;gap:4px}
+.feed-tab{padding:6px 16px;border-radius:20px;font-size:.85rem;font-weight:600;cursor:pointer;transition:.18s;color:var(--text-muted);border:none;background:none;font-family:inherit}
+.feed-tab.active{background:var(--blue);color:#fff;box-shadow:0 3px 10px var(--blue-glow)}
+.topbar-search{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:7px 14px;width:220px;transition:.2s}
+.topbar-search:focus-within{border-color:var(--blue);width:270px;box-shadow:0 0 0 3px var(--blue-glow)}
+.topbar-search input{background:none;border:none;outline:none;color:var(--text);font-family:inherit;font-size:.85rem;width:100%}
+.topbar-search input::placeholder{color:var(--text-muted)}
+.upload-cta{display:flex;align-items:center;gap:7px;padding:8px 18px;background:var(--blue);border:none;border-radius:10px;color:#fff;font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;transition:.18s;box-shadow:0 4px 12px var(--blue-glow);white-space:nowrap}
+.upload-cta:hover{background:var(--blue-light);transform:translateY(-1px)}
+
+.pages{flex:1;overflow:hidden;position:relative}
+.page{display:none;height:100%}
+.page.active{display:flex;flex-direction:column;height:100%}
+
+/* ── FEED ── */
+.feed-viewport{flex:1;overflow-y:scroll;scroll-snap-type:y mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;display:flex;flex-direction:column}
+.feed-viewport::-webkit-scrollbar{display:none}
+.video-slide{scroll-snap-align:start;scroll-snap-stop:always;flex-shrink:0;width:100%;height:100%;position:relative;display:flex;align-items:stretch}
+.slide-bg{position:absolute;inset:0;background-size:cover;background-position:center}
+.slide-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(5,15,40,.95) 0%,rgba(5,15,40,.5) 35%,rgba(5,15,40,.1) 65%,transparent 100%)}
+.slide-content{position:relative;width:calc(100% - var(--action-w));display:flex;flex-direction:column;justify-content:flex-end;padding:24px 20px 28px;z-index:2}
+.slide-author{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.slide-avatar{width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;font-size:.95rem;font-weight:800;color:#fff;flex-shrink:0;position:relative;overflow:hidden;background:var(--blue)}
+.slide-avatar img{width:100%;height:100%;object-fit:cover}
+.follow-plus{position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);width:18px;height:18px;background:var(--blue);border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:900;color:#fff;cursor:pointer;z-index:3}
+.follow-plus.following{background:#6b7280}
+.slide-author-name{font-size:.9rem;font-weight:700;color:#fff}
+.slide-author-role{font-size:.75rem;color:rgba(255,255,255,.65)}
+.slide-desc{font-size:.9rem;line-height:1.5;color:rgba(255,255,255,.92);margin-bottom:10px;max-width:460px}
+.slide-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.slide-tag{font-size:.76rem;font-weight:700;color:#60a5fa;background:rgba(37,99,235,.18);border:1px solid rgba(37,99,235,.3);border-radius:20px;padding:3px 10px}
+.slide-sound{display:flex;align-items:center;gap:8px;font-size:.78rem;color:rgba(255,255,255,.65)}
+.sound-disc{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;animation:spinDisc 4s linear infinite}
+@keyframes spinDisc{to{transform:rotate(360deg)}}
+.slide-actions{position:absolute;right:0;bottom:0;top:0;width:var(--action-w);z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:28px;gap:22px}
+.action-item{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;user-select:none}
+.action-circle{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.12);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;transition:.18s}
+.action-item:hover .action-circle{background:rgba(255,255,255,.22);transform:scale(1.08)}
+.action-item.liked .action-circle{background:rgba(26,77,190,.35);border-color:rgba(26,77,190,.5)}
+.action-count{font-size:.72rem;font-weight:700;color:rgba(255,255,255,.85)}
+.category-badge{position:absolute;top:16px;left:16px;z-index:3;background:var(--blue);color:#fff;font-size:.7rem;font-weight:800;letter-spacing:.05em;padding:4px 11px;border-radius:20px;box-shadow:0 3px 10px var(--blue-glow);text-transform:uppercase}
+.duration-badge{position:absolute;top:16px;right:calc(var(--action-w) + 10px);z-index:3;background:rgba(0,0,0,.5);color:#fff;font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:8px}
+.play-indicator{position:absolute;top:50%;left:calc(50% - var(--action-w)/2);transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.18);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:.2s;z-index:2}
+.video-slide:hover .play-indicator{opacity:1}
+.feed-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text-muted)}
+.feed-loading{flex:1;display:flex;align-items:center;justify-content:center}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── UPLOAD PAGE ── */
+.upload-page{padding:28px;overflow-y:auto}
+.upload-inner{max-width:680px;margin:0 auto}
+.page-h1{font-family:'Outfit',sans-serif;font-weight:900;font-size:1.6rem;color:var(--blue);margin-bottom:4px}
+.page-sub{font-size:.88rem;color:var(--text-muted);margin-bottom:28px}
+.dropzone{border:2.5px dashed rgba(26,77,190,.3);border-radius:18px;padding:52px 40px;text-align:center;background:rgba(26,77,190,.03);cursor:pointer;transition:.2s;margin-bottom:28px}
+.dropzone:hover{border-color:var(--blue);background:rgba(26,77,190,.06)}
+.dropzone h3{font-family:'Outfit',sans-serif;font-weight:700;font-size:1.1rem;margin:14px 0 8px}
+.dropzone p{font-size:.85rem;color:var(--text-muted);margin-bottom:18px}
+.dropzone.has-file{border-color:var(--blue);background:rgba(26,77,190,.06)}
+.dropzone.has-file .dz-icon{color:var(--blue)}
+.btn-select{padding:10px 28px;background:var(--blue);border:none;border-radius:10px;color:#fff;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer;box-shadow:0 4px 12px var(--blue-glow);transition:.18s}
+.btn-select:hover{background:var(--blue-light)}
+.upload-form{display:grid;gap:18px}
+.form-label{font-size:.83rem;font-weight:700;color:var(--text-mid);display:block;margin-bottom:6px}
+.form-input,.form-textarea,.form-select{width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-family:inherit;font-size:.9rem;transition:.2s;outline:none}
+.form-input:focus,.form-textarea:focus,.form-select:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-glow)}
+.form-textarea{min-height:88px;resize:none}
+.vis-row{display:flex;gap:10px}
+.vis-opt{flex:1;padding:10px;text-align:center;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;transition:.18s;font-size:.85rem;font-weight:600}
+.vis-opt.active{border-color:var(--blue);background:rgba(26,77,190,.08);color:var(--blue)}
+.btn-publish{width:100%;padding:14px;background:var(--blue);border:none;border-radius:12px;color:#fff;font-family:inherit;font-size:.95rem;font-weight:800;cursor:pointer;transition:.18s;box-shadow:0 6px 18px var(--blue-glow)}
+.btn-publish:hover:not(:disabled){background:var(--blue-light);transform:translateY(-1px)}
+.btn-publish:disabled{opacity:.6;cursor:not-allowed}
+.upload-progress{height:6px;background:var(--off-white);border-radius:3px;overflow:hidden;margin-top:8px;display:none}
+.upload-progress-bar{height:100%;background:var(--blue);border-radius:3px;transition:width .3s;width:0%}
+
+/* ── PROFILE PAGE ── */
+.profile-page{padding:28px;overflow-y:auto}
+.profile-banner{height:140px;border-radius:18px;background:linear-gradient(135deg,var(--blue-dark),var(--blue),#3b82f6);margin-bottom:-50px;position:relative;cursor:pointer}
+.profile-card{max-width:800px;margin:0 auto;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:0 28px 28px;position:relative}
+.profile-avatar-wrap{padding-top:12px;margin-bottom:12px;position:relative;width:fit-content}
+.profile-avatar{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,var(--blue),#3b82f6);border:4px solid #fff;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;color:#fff;box-shadow:0 6px 20px var(--blue-glow);overflow:hidden;cursor:pointer}
+.profile-avatar img{width:100%;height:100%;object-fit:cover}
+.cam-btn{position:absolute;bottom:2px;right:2px;width:28px;height:28px;background:var(--blue);border-radius:50%;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px var(--blue-glow)}
+.profile-name{font-family:'Outfit',sans-serif;font-weight:900;font-size:1.5rem;margin-bottom:2px}
+.profile-handle{color:var(--text-muted);font-size:.88rem;margin-bottom:8px}
+.profile-bio{font-size:.88rem;line-height:1.6;max-width:440px;margin-bottom:16px}
+.profile-stats{display:flex;gap:24px;margin-bottom:18px}
+.pstat-num{font-family:'Outfit',sans-serif;font-weight:900;font-size:1.3rem;color:var(--blue)}
+.pstat-lbl{font-size:.72rem;color:var(--text-muted)}
+.profile-btns{display:flex;gap:10px}
+.btn-edit{padding:9px 22px;border:1.5px solid var(--border);border-radius:10px;background:none;color:var(--text);font-family:inherit;font-size:.87rem;font-weight:700;cursor:pointer;transition:.18s}
+.btn-edit:hover{border-color:var(--blue);color:var(--blue)}
+.profile-grid{max-width:800px;margin:24px auto 0;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.profile-thumb{aspect-ratio:9/16;border-radius:6px;overflow:hidden;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;font-size:2.2rem;transition:.18s}
+.profile-thumb:hover{opacity:.85}
+.profile-thumb-views{position:absolute;bottom:6px;left:6px;font-size:.7rem;font-weight:700;color:#fff;display:flex;align-items:center;gap:3px}
+
+/* ── EDIT PROFILE FORM ── */
+.edit-form-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px;max-width:800px;margin:18px auto 0}
+.edit-form-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.edit-form-title{font-family:'Outfit',sans-serif;font-weight:800;font-size:1.1rem;color:var(--blue)}
+.modal-close{background:var(--off-white);border:none;border-radius:8px;color:var(--text);cursor:pointer;padding:6px 11px;transition:.18s;font-family:inherit}
+.modal-close:hover{background:var(--border)}
+.avatar-upload-row{display:flex;align-items:center;gap:18px;padding:18px;background:var(--off-white);border-radius:14px;border:1px solid var(--border);margin-bottom:24px}
+.edit-avatar-preview{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--blue),#60a5fa);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;color:#fff;overflow:hidden;border:3px solid #fff;box-shadow:0 4px 14px var(--blue-glow);flex-shrink:0;position:relative}
+.edit-avatar-preview img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.skills-container{display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:var(--off-white);border:1.5px solid var(--border);border-radius:10px;min-height:46px;cursor:text}
+.skill-tag{display:inline-flex;align-items:center;gap:5px;padding:4px 10px 4px 12px;background:rgba(26,77,190,.1);border:1px solid rgba(26,77,190,.22);border-radius:20px;font-size:.78rem;font-weight:700;color:var(--blue)}
+.skill-remove{cursor:pointer;font-size:.85rem;color:var(--text-muted);line-height:1}
+.skill-remove:hover{color:var(--blue)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* ── NOTIFICATIONS ── */
+.notif-page{padding:28px;overflow-y:auto}
+.notif-list{max-width:620px;margin:0 auto}
+.notif-item{display:flex;gap:12px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:13px;margin-bottom:10px;transition:.18s}
+.notif-item:hover{border-color:rgba(26,77,190,.3)}
+.notif-emoji{width:42px;height:42px;border-radius:50%;background:var(--off-white);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.notif-text{font-size:.87rem;line-height:1.45}
+.notif-time{font-size:.72rem;color:var(--text-muted);margin-top:3px}
+
+/* ── FOLLOWING ── */
+.following-page{padding:28px;overflow-y:auto}
+.following-list{max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+.follow-card{display:flex;align-items:center;gap:13px;padding:13px 16px;background:var(--surface);border:1px solid var(--border);border-radius:13px;transition:.18s}
+.follow-card:hover{border-color:rgba(26,77,190,.25)}
+.fc-avatar{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden}
+.fc-avatar img{width:100%;height:100%;object-fit:cover}
+.fc-name{font-weight:700;font-size:.88rem}
+.fc-role{font-size:.75rem;color:var(--text-muted)}
+.btn-fc{padding:7px 15px;border:1.5px solid var(--border);border-radius:8px;background:none;color:var(--text);font-family:inherit;font-size:.8rem;font-weight:700;cursor:pointer;transition:.18s}
+.btn-fc:hover{border-color:var(--blue);color:var(--blue)}
+
+/* ── COMMENTS MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(5,15,40,.6);backdrop-filter:blur(8px);z-index:500;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:.25s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-sheet{background:var(--surface);border-radius:24px 24px 0 0;width:100%;max-width:560px;max-height:70vh;display:flex;flex-direction:column;transform:translateY(40px);transition:transform .3s cubic-bezier(.34,1.56,.64,1);overflow:hidden}
+.modal-overlay.open .modal-sheet{transform:translateY(0)}
+.modal-handle{width:40px;height:4px;border-radius:2px;background:var(--border);margin:12px auto 0}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 12px;border-bottom:1px solid var(--border)}
+.modal-title{font-family:'Outfit',sans-serif;font-weight:800;font-size:1rem}
+.comment-scroll{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px}
+.comment-item{display:flex;gap:10px}
+.comment-av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden;background:var(--blue)}
+.comment-av img{width:100%;height:100%;object-fit:cover}
+.comment-bubble{background:var(--off-white);border-radius:12px;padding:9px 13px;flex:1}
+.comment-auth{font-size:.78rem;font-weight:700;margin-bottom:3px;color:var(--blue)}
+.comment-txt{font-size:.85rem;line-height:1.4}
+.comment-ts{font-size:.68rem;color:var(--text-muted);margin-top:3px}
+.comment-input-row{display:flex;gap:10px;align-items:center;padding:12px 20px 20px;border-top:1px solid var(--border)}
+.comment-in{flex:1;background:var(--off-white);border:1.5px solid var(--border);border-radius:10px;padding:9px 13px;color:var(--text);font-family:inherit;font-size:.87rem;outline:none;transition:.2s}
+.comment-in:focus{border-color:var(--blue)}
+.btn-send{background:var(--blue);border:none;border-radius:10px;color:#fff;padding:10px 14px;cursor:pointer;transition:.18s;box-shadow:0 3px 10px var(--blue-glow)}
+.btn-send:hover{background:var(--blue-light)}
+
+/* ── SEARCH ── */
+.search-page{padding:28px;overflow-y:auto}
+.search-hero{max-width:600px;margin:0 auto 28px;text-align:center}
+.search-hero h2{font-family:'Outfit',sans-serif;font-size:1.6rem;font-weight:900;color:var(--blue);margin-bottom:6px}
+.search-big{display:flex;align-items:center;gap:10px;background:var(--surface);border:2px solid var(--border);border-radius:14px;padding:12px 18px;transition:.2s}
+.search-big:focus-within{border-color:var(--blue);box-shadow:0 0 0 4px var(--blue-glow)}
+.search-big input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:inherit;font-size:1rem}
+.search-big input::placeholder{color:var(--text-muted)}
+.search-cats{display:flex;flex-wrap:wrap;gap:8px;max-width:900px;margin:0 auto 28px}
+.search-cat{padding:8px 18px;border-radius:20px;font-size:.85rem;font-weight:600;cursor:pointer;border:2px solid var(--border);background:var(--surface);color:var(--text-mid);transition:.18s;font-family:inherit}
+.search-cat:hover,.search-cat.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.search-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;max-width:1000px;margin:0 auto}
+.search-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;transition:.2s}
+.search-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(26,77,190,.12);border-color:rgba(26,77,190,.3)}
+.search-card-thumb{aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;font-size:2.8rem}
+.search-card-body{padding:12px 14px}
+.search-card-title{font-size:.88rem;font-weight:700;margin-bottom:4px}
+.search-card-meta{font-size:.76rem;color:var(--text-muted)}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;right:28px;background:var(--blue);color:#fff;border-radius:12px;padding:11px 18px;font-size:.87rem;font-weight:600;z-index:9000;transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 6px 20px var(--blue-glow);pointer-events:none}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.error{background:#dc2626}
+
+@media(max-width:760px){.sidebar{display:none};:root{--sidebar-w:0px}}
+@media(max-width:480px){.upload-cta span{display:none};.topbar-search{width:160px};.two-col{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- ══ AUTH SCREEN ══ -->
+<div id="authScreen">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">
+        <svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="11" r="7" fill="white"/><rect x="10" y="20" width="20" height="16" rx="5" fill="white"/><rect x="18.5" y="20" width="3" height="2" rx="1" fill="#1a4dbe"/><polygon points="17.5,22 22.5,22 21,32 19,32" fill="#1a4dbe"/></svg>
+      </div>
+      <div class="auth-logo-name">Job<span>Chat</span></div>
+    </div>
+    <div class="auth-title" id="authTitle">Bentornato 👋</div>
+    <div class="auth-sub" id="authSub">Accedi al tuo account JobChat</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="setAuthMode('login')">Accedi</button>
+      <button class="auth-tab" onclick="setAuthMode('register')">Registrati</button>
+    </div>
+    <div class="auth-err" id="authErr"></div>
+    <div class="auth-field" id="fieldName" style="display:none">
+      <label>Nome e Cognome</label>
+      <input type="text" class="auth-input" id="authName" placeholder="Mario Rossi">
+    </div>
+    <div class="auth-field" id="fieldUsername" style="display:none">
+      <label>Username</label>
+      <input type="text" class="auth-input" id="authUsername" placeholder="mariorossi" oninput="this.value=this.value.replace(/[^a-z0-9_.]/gi,'').toLowerCase()">
+    </div>
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" class="auth-input" id="authEmail" placeholder="mario@email.com">
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input type="password" class="auth-input" id="authPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAuth()">
+    </div>
+    <button class="auth-btn" id="authBtn" onclick="doAuth()">Accedi</button>
+  </div>
+</div>
+
+<!-- ══ APP LOADER ══ -->
+<div id="appLoader" style="display:none">
+  <div class="loader-logo">JobChat</div>
+  <div class="loader-dots">
+    <div class="loader-dot"></div><div class="loader-dot"></div><div class="loader-dot"></div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div class="app" id="mainApp" style="display:none">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-wrap">
+        <div class="logo-icon"><svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="11" r="7" fill="white"/><rect x="10" y="20" width="20" height="16" rx="5" fill="white"/><rect x="18.5" y="20" width="3" height="2" rx="1" fill="#1a4dbe"/><polygon points="17.5,22 22.5,22 21,32 19,32" fill="#1a4dbe"/></svg></div>
+        <span class="logo-name">Job<span>Chat</span></span>
+      </div>
+    </div>
+    <div class="nav-item active" onclick="showPage('feed',this)"><div class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="2" y="2" width="9" height="11" rx="2"/><rect x="13" y="2" width="9" height="7" rx="2"/><rect x="13" y="13" width="9" height="9" rx="2"/><rect x="2" y="17" width="9" height="5" rx="2"/></svg></div>Feed</div>
+    <div class="nav-item" onclick="showPage('search',this)"><div class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>Esplora</div>
+    <div class="nav-item" onclick="showPage('upload',this)"><div class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>Carica</div>
+    <div class="nav-item" onclick="showPage('notif',this)"><div class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>Notifiche</div>
+    <div class="nav-item" onclick="showPage('following',this)"><div class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>Following</div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-bottom" onclick="showPage('myprofile',this)">
+      <div class="avatar-chip" id="sidebarAvatar"><span id="sidebarInitial">?</span></div>
+      <div><div class="sb-user-name" id="sidebarName">Il tuo profilo</div><div class="sb-user-role" id="sidebarHandle">@account</div></div>
+    </div>
+    <div style="padding:8px 12px;margin-top:6px"><button onclick="doLogout()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:none;font-family:inherit;font-size:.8rem;color:var(--text-muted);cursor:pointer;transition:.18s" onmouseover="this.style.color='#dc2626';this.style.borderColor='#fca5a5'" onmouseout="this.style.color='';this.style.borderColor=''">🚪 Esci</button></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="feed-tabs">
+        <button class="feed-tab active" id="tab-forYou" onclick="switchTab('forYou')">Per te</button>
+        <button class="feed-tab" id="tab-following" onclick="switchTab('following')">Seguiti</button>
+        <button class="feed-tab" id="tab-trending" onclick="switchTab('trending')">🔥 Trending</button>
+      </div>
+      <div class="topbar-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Cerca…" oninput="onTopSearch(this.value)">
+      </div>
+      <button class="upload-cta" onclick="showPage('upload',null)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>Carica</span>
+      </button>
+    </header>
+
+    <div class="pages">
+
+      <!-- FEED -->
+      <div class="page active" id="page-feed">
+        <div class="feed-loading" id="feedLoading"><div class="spinner"></div></div>
+        <div class="feed-viewport" id="feedViewport" style="display:none"></div>
+        <div class="feed-empty" id="feedEmpty" style="display:none">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.4" style="opacity:.4"><rect x="2" y="2" width="20" height="20" rx="4"/><polygon points="10,8 10,16 17,12"/></svg>
+          <div style="font-family:'Outfit',sans-serif;font-weight:800;font-size:1.1rem">Nessun video ancora!</div>
+          <div style="font-size:.88rem;color:var(--text-muted)">Sii il primo a caricare un video su JobChat</div>
+          <button class="btn-publish" style="width:auto;padding:10px 28px;margin-top:8px" onclick="showPage('upload',null)">+ Carica ora</button>
+        </div>
+      </div>
+
+      <!-- SEARCH -->
+      <div class="page" id="page-search">
+        <div class="search-page">
+          <div class="search-hero">
+            <h2>Esplora JobChat</h2>
+            <p>Scopri video su carriera, skills, interview tips e tanto altro</p>
+            <div class="search-big">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" placeholder="Cerca argomenti, persone, aziende…" id="searchIn" oninput="filterSearchGrid(this.value)">
+            </div>
+          </div>
+          <div class="search-cats" id="searchCats"></div>
+          <div class="search-grid" id="searchGrid"></div>
+        </div>
+      </div>
+
+      <!-- UPLOAD -->
+      <div class="page" id="page-upload">
+        <div class="upload-page">
+          <div class="upload-inner">
+            <div class="page-h1">📤 Carica il tuo video</div>
+            <div class="page-sub">Condividi la tua esperienza professionale con la community JobChat</div>
+            <div class="dropzone" id="dropzone" onclick="document.getElementById('videoFileIn').click()">
+              <div class="dz-icon">
+                <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.4"><rect x="2" y="2" width="20" height="20" rx="4"/><polygon points="10,8 10,16 17,12"/></svg>
+              </div>
+              <h3 id="dzTitle">Trascina il video qui</h3>
+              <p>MP4, MOV · Max 500MB · Fino a 10 minuti</p>
+              <button class="btn-select" onclick="event.stopPropagation();document.getElementById('videoFileIn').click()">Seleziona file</button>
+              <input type="file" id="videoFileIn" accept="video/*" style="display:none" onchange="onVideoChosen(this)">
+            </div>
+            <div class="upload-form">
+              <div><label class="form-label">Titolo *</label><input type="text" class="form-input" id="upTitle" placeholder="Es. Come ho ottenuto il mio primo colloquio in Google" maxlength="100"></div>
+              <div><label class="form-label">Descrizione & Hashtag</label><textarea class="form-textarea" id="upDesc" placeholder="Descrivi il video… usa #hashtag"></textarea></div>
+              <div><label class="form-label">Categoria</label>
+                <select class="form-select" id="upCat">
+                  <option>💼 Ricerca lavoro</option><option>🎤 Colloqui & interviste</option>
+                  <option>💡 Carriera & crescita</option><option>💻 Tech & sviluppo</option>
+                  <option>📊 Business & startup</option><option>🧠 Soft skills</option><option>📝 CV & LinkedIn</option>
+                </select>
+              </div>
+              <div><label class="form-label">Visibilità</label>
+                <div class="vis-row">
+                  <div class="vis-opt active" onclick="setVis(this,'public')">🌍 Tutti</div>
+                  <div class="vis-opt" onclick="setVis(this,'connections')">🤝 Connessioni</div>
+                  <div class="vis-opt" onclick="setVis(this,'private')">🔒 Privato</div>
+                </div>
+              </div>
+              <div class="upload-progress" id="uploadProgress"><div class="upload-progress-bar" id="uploadProgressBar"></div></div>
+              <button class="btn-publish" id="publishBtn" onclick="publishVideo()">🚀 Pubblica ora</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NOTIFICATIONS -->
+      <div class="page" id="page-notif">
+        <div class="notif-page">
+          <div class="page-h1" style="margin-bottom:20px">🔔 Notifiche</div>
+          <div class="notif-list" id="notifList">
+            <div style="text-align:center;padding:40px;color:var(--text-muted);font-size:.9rem">Le notifiche arriveranno qui quando qualcuno interagisce con i tuoi contenuti ✨</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FOLLOWING -->
+      <div class="page" id="page-following">
+        <div class="following-page">
+          <div class="page-h1" style="margin-bottom:20px">👥 Account seguiti</div>
+          <div class="following-list" id="followingList"><div class="spinner" style="margin:40px auto"></div></div>
+        </div>
+      </div>
+
+      <!-- MY PROFILE -->
+      <div class="page" id="page-myprofile">
+        <div class="profile-page">
+          <div class="profile-banner" id="myBanner" onclick="document.getElementById('bannerIn').click()" title="Cambia copertina">
+            <div style="position:absolute;bottom:10px;right:14px;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);border-radius:8px;padding:5px 12px;font-size:.72rem;font-weight:700;color:#fff;display:flex;align-items:center;gap:5px">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              Cambia copertina
+            </div>
+            <input type="file" id="bannerIn" accept="image/*" style="display:none" onclick="event.stopPropagation()" onchange="onBannerChosen(this)">
+          </div>
+          <div class="profile-card" id="myProfileView">
+            <div class="profile-avatar-wrap">
+              <div class="profile-avatar" id="myAvatar" onclick="document.getElementById('avatarIn').click()">
+                <span id="myInitial">?</span>
+                <img id="myAvatarImg" src="" alt="" style="display:none">
+              </div>
+              <div class="cam-btn" onclick="document.getElementById('avatarIn').click()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              </div>
+              <input type="file" id="avatarIn" accept="image/*" style="display:none" onchange="onAvatarChosen(this)">
+            </div>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:4px">
+              <div>
+                <div class="profile-name" id="myName">Il tuo nome</div>
+                <div class="profile-handle" id="myHandle">@account</div>
+              </div>
+              <button class="btn-edit" onclick="openEditProfile()">✏️ Modifica profilo</button>
+            </div>
+            <div class="profile-bio" id="myBio" style="color:var(--text-muted);font-style:italic">Aggiungi una bio per presentarti alla community!</div>
+            <div id="mySkillsView" style="display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px"></div>
+            <div class="profile-stats">
+              <div><div class="pstat-num" id="myVidCount">0</div><div class="pstat-lbl">Video</div></div>
+              <div><div class="pstat-num" id="myFollowerCount">0</div><div class="pstat-lbl">Follower</div></div>
+              <div><div class="pstat-num" id="myFollowingCount">0</div><div class="pstat-lbl">Following</div></div>
+            </div>
+            <div style="margin-top:16px"><button class="btn-publish" style="width:auto;padding:9px 24px;font-size:.87rem" onclick="showPage('upload',null)">+ Carica video</button></div>
+          </div>
+
+          <!-- EDIT FORM -->
+          <div id="myProfileEdit" style="display:none">
+            <div class="edit-form-card">
+              <div class="edit-form-head">
+                <div class="edit-form-title">✏️ Modifica profilo</div>
+                <button class="modal-close" onclick="closeEditProfile()">✕ Annulla</button>
+              </div>
+              <div class="avatar-upload-row">
+                <div style="position:relative;flex-shrink:0">
+                  <div class="edit-avatar-preview" id="editAvatarPreview">
+                    <span id="editInitPreview">?</span>
+                    <img id="editAvatarImgPrev" src="" alt="" style="display:none;border-radius:50%">
+                  </div>
+                  <div onclick="document.getElementById('avatarIn').click()" style="position:absolute;bottom:0;right:0;width:24px;height:24px;background:var(--blue);border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-weight:700;font-size:.9rem;margin-bottom:3px">Foto profilo</div>
+                  <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px">JPG o PNG · Max 5MB</div>
+                  <div style="display:flex;gap:8px">
+                    <button class="btn-select" style="padding:7px 16px;font-size:.8rem" onclick="document.getElementById('avatarIn').click()">📷 Carica foto</button>
+                    <button class="btn-edit" style="padding:7px 14px;font-size:.8rem" onclick="removeAvatar()">Rimuovi</button>
+                  </div>
+                </div>
+              </div>
+              <div class="two-col" style="margin-bottom:16px">
+                <div><label class="form-label">Nome e Cognome *</label><input type="text" class="form-input" id="editName" placeholder="Mario Rossi" maxlength="60"></div>
+                <div><label class="form-label">Ruolo professionale</label><input type="text" class="form-input" id="editRole" placeholder="Es. Product Manager" maxlength="80"></div>
+              </div>
+              <div class="two-col" style="margin-bottom:16px">
+                <div><label class="form-label">Posizione</label><input type="text" class="form-input" id="editLocation" placeholder="Milano, Italia 🇮🇹" maxlength="60"></div>
+                <div><label class="form-label">Link (LinkedIn, sito…)</label><input type="url" class="form-input" id="editLink" placeholder="https://linkedin.com/in/..."></div>
+              </div>
+              <div style="margin-bottom:16px">
+                <label class="form-label" style="display:flex;justify-content:space-between">Bio <span id="bioCharCount" style="font-weight:400;color:var(--text-muted)">0 / 200</span></label>
+                <textarea class="form-textarea" id="editBio" placeholder="Presentati alla community…" maxlength="200" oninput="updateBioCount()"></textarea>
+              </div>
+              <div style="margin-bottom:24px">
+                <label class="form-label" style="display:flex;justify-content:space-between;align-items:center">Skills <span style="font-size:.72rem;font-weight:400;color:var(--text-muted)">premi Invio per aggiungere</span></label>
+                <div class="skills-container" id="skillsContainer" onclick="document.getElementById('skillInput').focus()"></div>
+                <input type="text" id="skillInput" class="form-input" placeholder="Es. React, Project Management…" style="margin-top:8px" onkeydown="handleSkillInput(event)" maxlength="30">
+              </div>
+              <div style="display:flex;gap:10px">
+                <button class="btn-publish" onclick="saveProfile()" style="flex:1">💾 Salva profilo</button>
+                <button class="btn-edit" onclick="closeEditProfile()">Annulla</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- My videos grid -->
+          <div class="profile-grid" id="myVideosGrid"></div>
+          <div id="myEmptyState" style="text-align:center;padding:50px 20px;color:var(--text-muted);max-width:800px;margin:0 auto;display:none">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.4" style="opacity:.4;margin-bottom:10px"><rect x="2" y="2" width="20" height="20" rx="4"/><polygon points="10,8 10,16 17,12"/></svg>
+            <div style="font-family:'Outfit',sans-serif;font-weight:800;font-size:1.05rem;margin-bottom:5px">Carica il tuo primo video!</div>
+            <button class="btn-publish" style="width:auto;padding:10px 28px;margin-top:14px" onclick="showPage('upload',null)">Inizia ora →</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- COMMENTS MODAL -->
+<div class="modal-overlay" id="commentsModal" onclick="closeIfOverlay(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-head">
+      <div class="modal-title">Commenti</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="comment-scroll" id="commentScroll"></div>
+    <div class="comment-input-row">
+      <input class="comment-in" type="text" id="commentIn" placeholder="Scrivi un commento…" onkeydown="if(event.key==='Enter')submitComment()">
+      <button class="btn-send" onclick="submitComment()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+// SUPABASE INIT
+// ══════════════════════════════════════════
+const SUPABASE_URL = 'https://odgnhptzqjifragqnwgt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kZ25ocHR6cWppZnJhZ3Fud2d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Njg1MzEsImV4cCI6MjA5MDM0NDUzMX0.g3MKFRw7YXZTYSGgXJBXeg0mcil_963WWV2YIlQTXXc';
+
+// Inizializzazione sicura — gestisce sia CDN unpkg che jsdelivr
+let sb;
+try {
+  const client = (window.supabase || window.Supabase);
+  if (!client) throw new Error('Libreria Supabase non caricata');
+  sb = client.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    }
+  });
+} catch(e) {
+  console.error('Supabase init error:', e);
+}
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let currentUser = null;
+let currentProfile = null;
+let allVideos = [];
+let currentVideoId = null;
+let selectedVisibility = 'public';
+let selectedVideoFile = null;
+let localSkills = [];
+
+// ══════════════════════════════════════════
+// BOOT — check session
+// ══════════════════════════════════════════
+async function boot() {
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appLoader').style.display = 'flex';
+
+  // Verifica che Supabase sia caricato
+  if (!sb) {
+    document.getElementById('appLoader').style.display = 'none';
+    document.getElementById('authScreen').style.display = 'flex';
+    showAuthErr('Errore di connessione. Ricarica la pagina.');
+    return;
+  }
+
+  try {
+    const { data: { session }, error } = await sb.auth.getSession();
+    if (error) throw error;
+    if (session) {
+      currentUser = session.user;
+      await loadProfile();
+      showApp();
+    } else {
+      document.getElementById('appLoader').style.display = 'none';
+      document.getElementById('authScreen').style.display = 'flex';
+    }
+  } catch(e) {
+    console.error('Boot error:', e);
+    document.getElementById('appLoader').style.display = 'none';
+    document.getElementById('authScreen').style.display = 'flex';
+    showAuthErr('Errore di connessione al server. Ricarica la pagina.');
+  }
+}
+
+function showApp() {
+  document.getElementById('appLoader').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'flex';
+  updateSidebar();
+  loadFeed();
+  loadFollowing();
+  loadMyVideos();
+  buildSearchCats();
+}
+
+// ══════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════
+let authMode = 'login';
+
+function setAuthMode(mode) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&mode==='login')||(i===1&&mode==='register')));
+  document.getElementById('fieldName').style.display     = mode==='register' ? 'block' : 'none';
+  document.getElementById('fieldUsername').style.display = mode==='register' ? 'block' : 'none';
+  document.getElementById('authTitle').textContent = mode==='login' ? 'Bentornato 👋' : 'Crea il tuo account';
+  document.getElementById('authSub').textContent   = mode==='login' ? 'Accedi al tuo account JobChat' : 'Unisciti alla community professionale';
+  document.getElementById('authBtn').textContent   = mode==='login' ? 'Accedi' : 'Registrati';
+  document.getElementById('authErr').style.display = 'none';
+}
+
+async function doAuth() {
+  const email    = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const btn      = document.getElementById('authBtn');
+  errEl = document.getElementById('authErr');
+  errEl.style.display = 'none';
+
+  if (!email || !password) { showAuthErr('Compila tutti i campi'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Attendere…';
+
+  try {
+    if (authMode === 'login') {
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      currentUser = data.user;
+      await loadProfile();
+      showApp();
+    } else {
+      const name     = document.getElementById('authName').value.trim();
+      const username = document.getElementById('authUsername').value.trim().toLowerCase();
+      if (!name || !username) { showAuthErr('Compila nome e username'); btn.disabled=false; btn.textContent='Registrati'; return; }
+
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if (error) throw error;
+
+      currentUser = data.user;
+      if (currentUser) {
+        await sb.from('profiles').insert({ id: currentUser.id, username, full_name: name });
+        await loadProfile();
+        showApp();
+        showToast('🎉 Account creato! Benvenuto su JobChat!');
+      } else {
+        // Email confirmation required
+        showAuthErr('✅ Controlla la tua email per confermare la registrazione, poi accedi.');
+        btn.disabled=false; btn.textContent='Registrati';
+      }
+    }
+  } catch(e) {
+    console.error('Auth error:', e);
+    const msg = e.message || '';
+    if (msg.includes('fetch') || msg.includes('network') || msg.toLowerCase().includes('failed')) {
+      showAuthErr('❌ Errore di connessione. Controlla la tua connessione internet e riprova.');
+    } else {
+      showAuthErr(translateError(msg));
+    }
+    btn.disabled=false;
+    btn.textContent = authMode==='login' ? 'Accedi' : 'Registrati';
+  }
+}
+
+function showAuthErr(msg) {
+  const el = document.getElementById('authErr');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function translateError(msg) {
+  if (msg.includes('Invalid login')) return 'Email o password non corretti';
+  if (msg.includes('already registered')) return 'Email già registrata — prova ad accedere';
+  if (msg.includes('Password should')) return 'La password deve essere lunga almeno 6 caratteri';
+  return msg;
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  currentUser = null; currentProfile = null; allVideos = [];
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'flex';
+  document.getElementById('authEmail').value = '';
+  document.getElementById('authPassword').value = '';
+  document.getElementById('authBtn').disabled = false;
+  document.getElementById('authBtn').textContent = 'Accedi';
+  setAuthMode('login');
+}
+
+// ══════════════════════════════════════════
+// PROFILE LOAD
+// ══════════════════════════════════════════
+async function loadProfile() {
+  const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+  currentProfile = data || { id: currentUser.id, username: currentUser.email.split('@')[0], full_name: '', bio: '', role: '', location: '', avatar_url: '', skills: [] };
+  localSkills = currentProfile.skills || [];
+}
+
+function updateSidebar() {
+  if (!currentProfile) return;
+  document.getElementById('sidebarName').textContent   = currentProfile.full_name || 'Il tuo profilo';
+  document.getElementById('sidebarHandle').textContent = '@' + (currentProfile.username || 'account');
+  document.getElementById('sidebarInitial').textContent = (currentProfile.full_name || currentProfile.username || '?')[0].toUpperCase();
+  if (currentProfile.avatar_url) {
+    const chip = document.getElementById('sidebarAvatar');
+    chip.innerHTML = `<img src="${currentProfile.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  }
+  applyProfileToView();
+}
+
+function applyProfileToView() {
+  if (!currentProfile) return;
+  const p = currentProfile;
+  document.getElementById('myName').textContent = p.full_name || 'Il tuo nome';
+  document.getElementById('myInitial').textContent = (p.full_name || p.username || '?')[0].toUpperCase();
+  let handleHTML = '@' + (p.username || 'account');
+  if (p.location) handleHTML += ' · 📍 ' + p.location;
+  if (p.role) handleHTML += ' · <span style="color:var(--text-mid)">' + p.role + '</span>';
+  document.getElementById('myHandle').innerHTML = handleHTML;
+
+  const bioEl = document.getElementById('myBio');
+  if (p.bio) {
+    bioEl.style.fontStyle = 'normal'; bioEl.style.color = 'var(--text)';
+    let html = p.bio;
+    if (p.website) html += `<br><a href="${p.website}" target="_blank" style="color:var(--blue);font-size:.82rem;font-weight:600;text-decoration:none">🔗 ${p.website.replace('https://','')}</a>`;
+    bioEl.innerHTML = html;
+  } else {
+    bioEl.style.fontStyle = 'italic'; bioEl.style.color = 'var(--text-muted)';
+    bioEl.textContent = 'Aggiungi una bio per presentarti alla community!';
+  }
+
+  const skillsEl = document.getElementById('mySkillsView');
+  const skills = p.skills || [];
+  skillsEl.innerHTML = skills.map(s => `<span style="padding:4px 12px;background:rgba(26,77,190,.1);border:1px solid rgba(26,77,190,.22);border-radius:20px;font-size:.76rem;font-weight:700;color:var(--blue)">${s}</span>`).join('');
+
+  if (p.avatar_url) {
+    document.getElementById('myAvatarImg').src = p.avatar_url;
+    document.getElementById('myAvatarImg').style.display = 'block';
+    document.getElementById('myInitial').style.display = 'none';
+  } else {
+    document.getElementById('myAvatarImg').style.display = 'none';
+    document.getElementById('myInitial').style.display = '';
+  }
+}
+
+// ══════════════════════════════════════════
+// PROFILE EDIT
+// ══════════════════════════════════════════
+function openEditProfile() {
+  if (!currentProfile) return;
+  document.getElementById('editName').value     = currentProfile.full_name || '';
+  document.getElementById('editRole').value     = currentProfile.role || '';
+  document.getElementById('editLocation').value = currentProfile.location || '';
+  document.getElementById('editLink').value     = currentProfile.website || '';
+  document.getElementById('editBio').value      = currentProfile.bio || '';
+  localSkills = [...(currentProfile.skills || [])];
+  updateBioCount();
+  renderSkillTags();
+  if (currentProfile.avatar_url) {
+    document.getElementById('editAvatarImgPrev').src = currentProfile.avatar_url;
+    document.getElementById('editAvatarImgPrev').style.display = 'block';
+    document.getElementById('editInitPreview').style.display = 'none';
+  } else {
+    document.getElementById('editAvatarImgPrev').style.display = 'none';
+    document.getElementById('editInitPreview').style.display = '';
+    document.getElementById('editInitPreview').textContent = (currentProfile.full_name || '?')[0].toUpperCase();
+  }
+  document.getElementById('myProfileEdit').style.display = 'block';
+  document.getElementById('myProfileEdit').scrollIntoView({behavior:'smooth'});
+}
+
+function closeEditProfile() {
+  document.getElementById('myProfileEdit').style.display = 'none';
+}
+
+async function saveProfile() {
+  const name = document.getElementById('editName').value.trim();
+  if (!name) { showToast('⚠️ Inserisci il tuo nome!','error'); return; }
+
+  const updates = {
+    full_name: name,
+    role:      document.getElementById('editRole').value.trim(),
+    location:  document.getElementById('editLocation').value.trim(),
+    website:   document.getElementById('editLink').value.trim(),
+    bio:       document.getElementById('editBio').value.trim(),
+    skills:    localSkills,
+  };
+
+  const { error } = await sb.from('profiles').update(updates).eq('id', currentUser.id);
+  if (error) { showToast('❌ Errore salvataggio','error'); return; }
+
+  Object.assign(currentProfile, updates);
+  applyProfileToView();
+  updateSidebar();
+  closeEditProfile();
+  showToast('✅ Profilo aggiornato!');
+}
+
+// ── AVATAR UPLOAD ──
+async function onAvatarChosen(inp) {
+  if (!inp.files[0]) return;
+  const file = inp.files[0];
+  const ext  = file.name.split('.').pop();
+  const path = `${currentUser.id}/avatar.${ext}`;
+  showToast('⏳ Caricamento foto…');
+
+  const { error: upErr } = await sb.storage.from('avatars').upload(path, file, { upsert: true });
+  if (upErr) { showToast('❌ Errore caricamento foto','error'); return; }
+
+  const { data } = sb.storage.from('avatars').getPublicUrl(path);
+  const url = data.publicUrl + '?t=' + Date.now();
+
+  await sb.from('profiles').update({ avatar_url: url }).eq('id', currentUser.id);
+  currentProfile.avatar_url = url;
+
+  // Apply everywhere
+  document.getElementById('myAvatarImg').src = url;
+  document.getElementById('myAvatarImg').style.display = 'block';
+  document.getElementById('myInitial').style.display = 'none';
+  document.getElementById('editAvatarImgPrev').src = url;
+  document.getElementById('editAvatarImgPrev').style.display = 'block';
+  document.getElementById('editInitPreview').style.display = 'none';
+  const chip = document.getElementById('sidebarAvatar');
+  chip.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+  showToast('📷 Foto profilo aggiornata!');
+}
+
+async function removeAvatar() {
+  await sb.from('profiles').update({ avatar_url: null }).eq('id', currentUser.id);
+  currentProfile.avatar_url = null;
+  document.getElementById('myAvatarImg').style.display = 'none';
+  document.getElementById('myInitial').style.display = '';
+  document.getElementById('editAvatarImgPrev').style.display = 'none';
+  document.getElementById('editInitPreview').style.display = '';
+  document.getElementById('editInitPreview').textContent = (currentProfile.full_name || '?')[0].toUpperCase();
+  document.getElementById('sidebarAvatar').innerHTML = `<span id="sidebarInitial">${(currentProfile.full_name||'?')[0].toUpperCase()}</span>`;
+  showToast('Foto profilo rimossa');
+}
+
+// ── BANNER UPLOAD ──
+async function onBannerChosen(inp) {
+  if (!inp.files[0]) return;
+  const file = inp.files[0];
+  const path = `${currentUser.id}/banner.${file.name.split('.').pop()}`;
+  const { error } = await sb.storage.from('banners').upload(path, file, { upsert: true });
+  if (error) { showToast('❌ Errore','error'); return; }
+  const { data } = sb.storage.from('banners').getPublicUrl(path);
+  const url = data.publicUrl + '?t=' + Date.now();
+  await sb.from('profiles').update({ banner_url: url }).eq('id', currentUser.id);
+  currentProfile.banner_url = url;
+  document.getElementById('myBanner').style.backgroundImage = `url(${url})`;
+  document.getElementById('myBanner').style.backgroundSize = 'cover';
+  document.getElementById('myBanner').style.backgroundPosition = 'center';
+  showToast('🖼️ Copertina aggiornata!');
+}
+
+// ── BIO / SKILLS ──
+function updateBioCount() {
+  const len = document.getElementById('editBio').value.length;
+  const el  = document.getElementById('bioCharCount');
+  el.textContent = `${len} / 200`;
+  el.style.color = len > 180 ? 'var(--blue)' : 'var(--text-muted)';
+}
+
+function renderSkillTags() {
+  const c = document.getElementById('skillsContainer');
+  c.innerHTML = localSkills.map((s,i) =>
+    `<span class="skill-tag">${s}<span class="skill-remove" onclick="removeSkill(${i})">×</span></span>`
+  ).join('') + (localSkills.length===0 ? '<span style="font-size:.8rem;color:var(--text-muted);align-self:center">Aggiungi le tue skills…</span>' : '');
+}
+
+function handleSkillInput(e) {
+  if (e.key !== 'Enter' && e.key !== ',') return;
+  e.preventDefault();
+  const val = e.target.value.trim().replace(',','');
+  if (!val || localSkills.length >= 12) return;
+  if (!localSkills.includes(val)) { localSkills.push(val); renderSkillTags(); }
+  e.target.value = '';
+}
+
+function removeSkill(i) { localSkills.splice(i,1); renderSkillTags(); }
+
+// ══════════════════════════════════════════
+// FEED — LOAD FROM SUPABASE
+// ══════════════════════════════════════════
+async function loadFeed() {
+  document.getElementById('feedLoading').style.display = 'flex';
+  document.getElementById('feedViewport').style.display = 'none';
+  document.getElementById('feedEmpty').style.display = 'none';
+
+  const { data: videos, error } = await sb
+    .from('videos')
+    .select('*, profiles(full_name, username, avatar_url, role)')
+    .eq('visibility','public')
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  document.getElementById('feedLoading').style.display = 'none';
+
+  if (error || !videos || videos.length === 0) {
+    document.getElementById('feedEmpty').style.display = 'flex';
+    return;
+  }
+
+  allVideos = videos;
+  const vp = document.getElementById('feedViewport');
+  vp.innerHTML = videos.map((v,i) => slideHTML(v,i)).join('');
+  vp.style.display = 'flex';
+
+  // Load likes state
+  loadLikesState(videos.map(v=>v.id));
+}
+
+async function loadLikesState(videoIds) {
+  if (!currentUser) return;
+  const { data } = await sb.from('likes').select('video_id').eq('user_id', currentUser.id).in('video_id', videoIds);
+  if (data) data.forEach(l => {
+    const btn = document.getElementById('like-'+l.video_id);
+    if (btn) { btn.dataset.liked = 'true'; btn.querySelector('.action-circle').style.background = 'rgba(26,77,190,.35)'; btn.querySelector('svg').setAttribute('fill','#60a5fa'); }
+  });
+}
+
+// ── SLIDE HTML ──
+const BG_FALLBACKS = [
+  ['#0f2d72','#1a4dbe'],['#1e3a5f','#2563eb'],['#0c4a6e','#0284c7'],
+  ['#1e1b4b','#3b0764'],['#064e3b','#065f46'],['#1c1917','#292524'],
+];
+const EMOJIS_LIST = ['💼','🎤','💻','📊','🧠','📝','🚀','🤝','💡','🎯'];
+
+function slideHTML(v, i) {
+  const profile  = v.profiles || {};
+  const name     = profile.full_name || profile.username || 'Utente';
+  const handle   = profile.username  || 'utente';
+  const role     = profile.role      || '';
+  const avatarUrl= profile.avatar_url;
+  const [c1,c2]  = BG_FALLBACKS[i % BG_FALLBACKS.length];
+  const emoji    = EMOJIS_LIST[i % EMOJIS_LIST.length];
+  const tags     = (v.tags || []).map(t=>`<span class="slide-tag">#${t.replace('#','')}</span>`).join('');
+  const likesN   = fmtNum(v.likes_count || 0);
+  const desc     = (v.description || '').substring(0,120);
+
+  const avatarHTML = avatarUrl
+    ? `<img src="${avatarUrl}" alt="">`
+    : `<span>${name[0].toUpperCase()}</span>`;
+
+  // If video_url exists show real video, else show emoji placeholder
+  const bgStyle = v.video_url
+    ? `background:#000`
+    : `background:linear-gradient(160deg,${c1},${c2})`;
+
+  const mediaHTML = v.video_url
+    ? `<video src="${v.video_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" loop muted playsinline preload="none" id="vid-${v.id}"></video>`
+    : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:min(18vw,140px);opacity:.18;user-select:none">${emoji}</div>`;
+
+  return `
+  <div class="video-slide" id="slide-${v.id}" onclick="handleSlideClick(event,'${v.id}')">
+    <div class="slide-bg" style="${bgStyle}">${mediaHTML}</div>
+    <div class="slide-overlay"></div>
+    <div class="category-badge">${v.category || 'Carriera'}</div>
+    <div class="play-indicator">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg>
+    </div>
+    <div class="slide-content">
+      <div class="slide-author">
+        <div class="slide-avatar">${avatarHTML}<div class="follow-plus" id="fp-${v.id}" onclick="toggleFollowSlide(event,'${v.user_id}','${handle}')">+</div></div>
+        <div><div class="slide-author-name">@${handle}</div><div class="slide-author-role">${role}</div></div>
+      </div>
+      <div class="slide-desc">${v.title || ''}<br><span style="font-size:.82rem;opacity:.75">${desc}</span></div>
+      <div class="slide-tags">${tags}</div>
+      <div class="slide-sound"><div class="sound-disc"><svg width="10" height="10" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg></div>JobChat Original · ${handle}</div>
+    </div>
+    <div class="slide-actions">
+      <div class="action-item" id="like-${v.id}" onclick="toggleLike(event,'${v.id}')">
+        <div class="action-circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></div>
+        <span class="action-count" id="lkc-${v.id}">${likesN}</span>
+      </div>
+      <div class="action-item" onclick="openComments('${v.id}')">
+        <div class="action-circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+        <span class="action-count" id="cmc-${v.id}">${fmtNum(v.comments_count||0)}</span>
+      </div>
+      <div class="action-item" onclick="shareSlide('${v.id}')">
+        <div class="action-circle"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
+        <span class="action-count">Condividi</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function handleSlideClick(e, videoId) {
+  // Toggle play/pause if real video
+  const vid = document.getElementById('vid-'+videoId);
+  if (!vid) return;
+  if (vid.paused) vid.play(); else vid.pause();
+}
+
+// ── LIKE ──
+async function toggleLike(e, videoId) {
+  e.stopPropagation();
+  const btn  = document.getElementById('like-'+videoId);
+  const isLiked = btn.dataset.liked === 'true';
+
+  if (isLiked) {
+    await sb.from('likes').delete().eq('user_id', currentUser.id).eq('video_id', videoId);
+    btn.dataset.liked = 'false';
+    btn.querySelector('.action-circle').style.background = '';
+    btn.querySelector('svg').setAttribute('fill','none');
+  } else {
+    await sb.from('likes').insert({ user_id: currentUser.id, video_id: videoId });
+    btn.dataset.liked = 'true';
+    btn.querySelector('.action-circle').style.background = 'rgba(26,77,190,.35)';
+    btn.querySelector('svg').setAttribute('fill','#60a5fa');
+  }
+  // Update count
+  const { count } = await sb.from('likes').select('*',{count:'exact',head:true}).eq('video_id',videoId);
+  document.getElementById('lkc-'+videoId).textContent = fmtNum(count||0);
+}
+
+// ── FOLLOW FROM SLIDE ──
+async function toggleFollowSlide(e, userId, handle) {
+  e.stopPropagation();
+  if (userId === currentUser.id) { showToast('Non puoi seguire te stesso 😄'); return; }
+  const btn = document.getElementById('fp-'+userId.split('-')[0]) || e.target;
+  const isFollowing = btn.textContent === '✓';
+  if (isFollowing) {
+    await sb.from('follows').delete().eq('follower_id',currentUser.id).eq('following_id',userId);
+    btn.textContent = '+'; btn.classList.remove('following');
+    showToast('Hai smesso di seguire @'+handle);
+  } else {
+    await sb.from('follows').insert({follower_id:currentUser.id, following_id:userId});
+    btn.textContent = '✓'; btn.classList.add('following');
+    showToast('✅ Ora segui @'+handle);
+  }
+}
+
+function shareSlide(id) {
+  navigator.clipboard?.writeText(window.location.href+'#v/'+id).catch(()=>{});
+  showToast('🔗 Link copiato!');
+}
+
+// ══════════════════════════════════════════
+// COMMENTS
+// ══════════════════════════════════════════
+async function openComments(videoId) {
+  currentVideoId = videoId;
+  document.getElementById('commentsModal').classList.add('open');
+  document.getElementById('commentScroll').innerHTML = '<div class="spinner" style="margin:20px auto"></div>';
+
+  const { data } = await sb.from('comments')
+    .select('*, profiles(full_name, username, avatar_url)')
+    .eq('video_id', videoId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  renderComments(data || []);
+}
+
+function renderComments(comments) {
+  const scroll = document.getElementById('commentScroll');
+  if (!comments.length) { scroll.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:.88rem">Nessun commento ancora. Sii il primo! 💬</div>'; return; }
+  scroll.innerHTML = comments.map(c => {
+    const p      = c.profiles || {};
+    const name   = p.username || 'utente';
+    const avatar = p.avatar_url ? `<img src="${p.avatar_url}" alt="">` : name[0].toUpperCase();
+    const time   = timeAgo(c.created_at);
+    return `<div class="comment-item">
+      <div class="comment-av">${avatar}</div>
+      <div class="comment-bubble">
+        <div class="comment-auth">@${name}</div>
+        <div class="comment-txt">${escHtml(c.content)}</div>
+        <div class="comment-ts">${time}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function submitComment() {
+  const inp  = document.getElementById('commentIn');
+  const text = inp.value.trim();
+  if (!text || !currentVideoId) return;
+  inp.value = '';
+
+  const { error } = await sb.from('comments').insert({ user_id: currentUser.id, video_id: currentVideoId, content: text });
+  if (error) { showToast('❌ Errore','error'); return; }
+
+  // Update count badge
+  const cntEl = document.getElementById('cmc-'+currentVideoId);
+  if (cntEl) {
+    const cur = parseInt(cntEl.textContent.replace('K','000').replace('M','000000')) || 0;
+    cntEl.textContent = fmtNum(cur+1);
+  }
+  openComments(currentVideoId); // refresh
+}
+
+function closeModal()       { document.getElementById('commentsModal').classList.remove('open'); }
+function closeIfOverlay(e)  { if(e.target.classList.contains('modal-overlay')) closeModal(); }
+
+// ══════════════════════════════════════════
+// VIDEO UPLOAD
+// ══════════════════════════════════════════
+function onVideoChosen(inp) {
+  if (!inp.files[0]) return;
+  selectedVideoFile = inp.files[0];
+  document.getElementById('dzTitle').textContent = '✅ ' + selectedVideoFile.name;
+  document.getElementById('dropzone').classList.add('has-file');
+}
+
+function setVis(el, v) {
+  document.querySelectorAll('.vis-opt').forEach(x => x.classList.remove('active'));
+  el.classList.add('active'); selectedVisibility = v;
+}
+
+async function publishVideo() {
+  const title = document.getElementById('upTitle').value.trim();
+  if (!title) { showToast('⚠️ Aggiungi un titolo!','error'); return; }
+  if (!selectedVideoFile) { showToast('⚠️ Seleziona un video!','error'); return; }
+
+  const btn = document.getElementById('publishBtn');
+  btn.disabled = true; btn.textContent = '⏳ Caricamento…';
+
+  const progressWrap = document.getElementById('uploadProgress');
+  const progressBar  = document.getElementById('uploadProgressBar');
+  progressWrap.style.display = 'block';
+
+  // Upload video file
+  const ext      = selectedVideoFile.name.split('.').pop();
+  const filePath = `${currentUser.id}/${Date.now()}.${ext}`;
+
+  // Simulate progress (Supabase JS doesn't expose upload progress natively)
+  let prog = 0;
+  const progInterval = setInterval(() => { prog = Math.min(prog+5,90); progressBar.style.width=prog+'%'; }, 300);
+
+  const { error: upErr } = await sb.storage.from('videos').upload(filePath, selectedVideoFile);
+  clearInterval(progInterval);
+
+  if (upErr) {
+    progressWrap.style.display='none'; btn.disabled=false; btn.textContent='🚀 Pubblica ora';
+    showToast('❌ Errore caricamento video','error'); return;
+  }
+
+  progressBar.style.width = '95%';
+  const { data: urlData } = sb.storage.from('videos').getPublicUrl(filePath);
+
+  const desc  = document.getElementById('upDesc').value.trim();
+  const cat   = document.getElementById('upCat').value;
+  const tags  = (desc.match(/#\w+/g) || []).map(t => t.replace('#',''));
+
+  const { error: dbErr } = await sb.from('videos').insert({
+    user_id:     currentUser.id,
+    title,
+    description: desc,
+    video_url:   urlData.publicUrl,
+    category:    cat,
+    tags,
+    visibility:  selectedVisibility,
+  });
+
+  progressBar.style.width = '100%';
+  setTimeout(() => progressWrap.style.display='none', 600);
+
+  if (dbErr) { btn.disabled=false; btn.textContent='🚀 Pubblica ora'; showToast('❌ Errore database','error'); return; }
+
+  btn.disabled=false; btn.textContent='🚀 Pubblica ora';
+  document.getElementById('upTitle').value=''; document.getElementById('upDesc').value='';
+  document.getElementById('dzTitle').textContent='Trascina il video qui';
+  document.getElementById('dropzone').classList.remove('has-file');
+  selectedVideoFile=null;
+  showToast('🚀 Video pubblicato!');
+  setTimeout(() => { showPage('feed',null); loadFeed(); loadMyVideos(); }, 1200);
+}
+
+// ══════════════════════════════════════════
+// MY VIDEOS
+// ══════════════════════════════════════════
+async function loadMyVideos() {
+  if (!currentUser) return;
+  const { data } = await sb.from('videos').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:false});
+  const grid  = document.getElementById('myVideosGrid');
+  const empty = document.getElementById('myEmptyState');
+  const countEl = document.getElementById('myVidCount');
+  if (countEl) countEl.textContent = data ? data.length : 0;
+
+  if (!data || data.length === 0) { grid.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  const BG = ['#0f2d72','#1e3a5f','#0c4a6e','#1e1b4b','#064e3b','#1c1917'];
+  grid.innerHTML = data.map((v,i)=>`
+    <div class="profile-thumb" style="background:${BG[i%BG.length]}" onclick="showPage('feed',null)">
+      <span style="font-size:2rem">${EMOJIS_LIST[i%EMOJIS_LIST.length]}</span>
+      <div class="profile-thumb-views"><svg width="10" height="10" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg>${fmtNum(v.views||0)}</div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════
+// FOLLOWING LIST
+// ══════════════════════════════════════════
+async function loadFollowing() {
+  if (!currentUser) return;
+  const { data } = await sb.from('follows')
+    .select('following_id, profiles!follows_following_id_fkey(full_name,username,avatar_url,role)')
+    .eq('follower_id', currentUser.id);
+
+  const list = document.getElementById('followingList');
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:.88rem">Non stai ancora seguendo nessuno.<br>Esplora il feed e segui i creator che ti ispirano! ✨</div>';
+    return;
+  }
+  list.innerHTML = data.map(f => {
+    const p = f.profiles || {};
+    const av = p.avatar_url ? `<img src="${p.avatar_url}" alt="">` : (p.full_name||'U')[0].toUpperCase();
+    return `<div class="follow-card">
+      <div class="fc-avatar" style="background:var(--blue)">${av}</div>
+      <div class="fc-info"><div class="fc-name">${p.full_name||'Utente'}</div><div class="fc-role">${p.role||p.username||''}</div></div>
+      <button class="btn-fc" onclick="unfollowUser('${f.following_id}','${p.username||''}',this)">Segui già</button>
+    </div>`;
+  }).join('');
+}
+
+async function unfollowUser(userId, handle, btn) {
+  await sb.from('follows').delete().eq('follower_id',currentUser.id).eq('following_id',userId);
+  btn.closest('.follow-card').remove();
+  showToast('Hai smesso di seguire @'+handle);
+}
+
+// ══════════════════════════════════════════
+// SEARCH
+// ══════════════════════════════════════════
+const SEARCH_CATS = ['Tutti','💼 Job search','🎤 Colloqui','💻 Tech','📊 Business','🧠 Soft Skills','📝 LinkedIn','🚀 Remote'];
+
+function buildSearchCats() {
+  document.getElementById('searchCats').innerHTML = SEARCH_CATS.map((c,i)=>
+    `<button class="search-cat ${i===0?'active':''}" onclick="filterSearchGrid('',this)">${c}</button>`
+  ).join('');
+  filterSearchGrid('');
+}
+
+function filterSearchGrid(q) {
+  const grid = document.getElementById('searchGrid');
+  const items = allVideos.filter(v => !q || (v.title||'').toLowerCase().includes(q.toLowerCase()) || (v.description||'').toLowerCase().includes(q.toLowerCase()));
+  if (!items.length) { grid.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted)">Nessun risultato trovato</div>'; return; }
+  const BG = ['#0f2d72','#1e3a5f','#0c4a6e','#1e1b4b'];
+  grid.innerHTML = items.map((v,i)=>`
+    <div class="search-card" onclick="showPage('feed',null)">
+      <div class="search-card-thumb" style="background:${BG[i%BG.length]}">${EMOJIS_LIST[i%EMOJIS_LIST.length]}</div>
+      <div class="search-card-body">
+        <div class="search-card-title">${(v.title||'').substring(0,60)}</div>
+        <div class="search-card-meta">@${(v.profiles&&v.profiles.username)||'utente'} · ${fmtNum(v.likes_count||0)} like</div>
+      </div>
+    </div>`).join('');
+}
+
+function onTopSearch(v) {
+  if (v.length > 1) { showPage('search',null); filterSearchGrid(v); document.getElementById('searchIn').value=v; }
+}
+
+// ══════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════
+function showPage(name, navEl) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if (navEl) navEl.classList.add('active');
+  if (name==='following') loadFollowing();
+  if (name==='myprofile') loadMyVideos();
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.feed-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  showToast(tab==='forYou'?'✨ Per te':tab==='following'?'👥 Seguiti':'🔥 Trending');
+  loadFeed();
+}
+
+// ══════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════
+function fmtNum(n) {
+  n = parseInt(n)||0;
+  if(n>=1000000) return (n/1000000).toFixed(1).replace('.0','')+'M';
+  if(n>=1000)    return (n/1000).toFixed(1).replace('.0','')+'K';
+  return n;
+}
+
+function timeAgo(ts) {
+  const d = Math.floor((Date.now()-new Date(ts).getTime())/1000);
+  if(d<60) return 'ora';
+  if(d<3600) return Math.floor(d/60)+'m fa';
+  if(d<86400) return Math.floor(d/3600)+'h fa';
+  return Math.floor(d/86400)+'g fa';
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+let toastTimer;
+function showToast(msg, type='') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast'+(type?' '+type:'');
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ══════════════════════════════════════════
+// START
+// ══════════════════════════════════════════
+boot();
+</script>
+</body>
+</html>
